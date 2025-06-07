@@ -1,140 +1,106 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>アライグマのごちそう大作戦</title>
+  <meta charset="UTF-8">
+  <title>Raccoon Game</title>
   <style>
-    canvas { background: #f5f5f5; display: block; margin: auto; }
-    body { text-align: center; font-family: sans-serif; }
-    #scoreboard { margin-top: 10px; font-size: 20px; }
+    canvas { background: #eee; display: block; margin: 0 auto; }
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+    }
+    .button {
+      width: 60px;
+      height: 60px;
+      margin: 10px;
+      font-size: 24px;
+      border-radius: 50%;
+      background-color: #444;
+      color: white;
+      border: none;
+    }
+    .row {
+      display: flex;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
-  <h1>アライグマのごちそう大作戦</h1>
-  <canvas id="gameCanvas" width="512" height="512"></canvas>
-  <div id="scoreboard">
-    <p>スコア: <span id="score">0</span></p>
-    <p>残り時間: <span id="time">180</span>秒</p>
-    <p id="gameover" style="display:none; font-weight: bold;">ゲーム終了！</p>
-    <div id="ranking"></div>
+
+<canvas id="gameCanvas" width="640" height="480"></canvas>
+
+<!-- 仮想コントローラー -->
+<div class="controls">
+  <div class="row">
+    <button class="button" id="up">⬆</button>
   </div>
-  <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const scoreEl = document.getElementById('score');
-    const timeEl = document.getElementById('time');
-    const gameoverEl = document.getElementById('gameover');
-    const rankingEl = document.getElementById('ranking');
+  <div class="row">
+    <button class="button" id="left">⬅</button>
+    <button class="button" id="down">⬇</button>
+    <button class="button" id="right">➡</button>
+  </div>
+</div>
 
-    const raccoon = { x: 100, y: 100, size: 32, speed: 2, dead: false, respawnTimer: 0 };
-    const foods = [];
-    const enemy = { x: 400, y: 400, size: 32, speed: 1.2 };
-    let keys = {};
-    let score = 0;
-    let timeLeft = 180;
+<script>
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
 
-    function spawnFood() {
-      for (let i = 0; i < 10; i++) {
-        foods.push({ x: Math.random() * 480, y: Math.random() * 480, eaten: false });
+  const player = { x: 50, y: 50, size: 32, speed: 2, dead: false, respawnTime: 0 };
+  let keys = {};
+
+  // タッチ操作対応
+  document.getElementById("up").ontouchstart = () => keys["ArrowUp"] = true;
+  document.getElementById("up").ontouchend = () => keys["ArrowUp"] = false;
+  document.getElementById("down").ontouchstart = () => keys["ArrowDown"] = true;
+  document.getElementById("down").ontouchend = () => keys["ArrowDown"] = false;
+  document.getElementById("left").ontouchstart = () => keys["ArrowLeft"] = true;
+  document.getElementById("left").ontouchend = () => keys["ArrowLeft"] = false;
+  document.getElementById("right").ontouchstart = () => keys["ArrowRight"] = true;
+  document.getElementById("right").ontouchend = () => keys["ArrowRight"] = false;
+
+  // キーボードも併用可能
+  document.addEventListener("keydown", e => keys[e.key] = true);
+  document.addEventListener("keyup", e => keys[e.key] = false);
+
+  function update() {
+    if (player.dead) {
+      if (Date.now() > player.respawnTime) {
+        player.dead = false;
+        player.x = 50;
+        player.y = 50;
       }
+      return;
     }
 
-    function update() {
-      if (timeLeft <= 0) return;
+    if (keys["ArrowUp"]) player.y -= player.speed;
+    if (keys["ArrowDown"]) player.y += player.speed;
+    if (keys["ArrowLeft"]) player.x -= player.speed;
+    if (keys["ArrowRight"]) player.x += player.speed;
+  }
 
-      if (!raccoon.dead) {
-        if (keys['ArrowUp']) raccoon.y -= raccoon.speed;
-        if (keys['ArrowDown']) raccoon.y += raccoon.speed;
-        if (keys['ArrowLeft']) raccoon.x -= raccoon.speed;
-        if (keys['ArrowRight']) raccoon.x += raccoon.speed;
-      } else {
-        raccoon.respawnTimer--;
-        if (raccoon.respawnTimer <= 0) raccoon.dead = false;
-      }
-
-      // Enemy follows player
-      const dx = raccoon.x - enemy.x;
-      const dy = raccoon.y - enemy.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist > 0) {
-        enemy.x += (dx / dist) * enemy.speed;
-        enemy.y += (dy / dist) * enemy.speed;
-      }
-
-      // Check collision with food
-      foods.forEach(food => {
-        if (!food.eaten && Math.abs(food.x - raccoon.x) < 20 && Math.abs(food.y - raccoon.y) < 20) {
-          food.eaten = true;
-          score += 10;
-          scoreEl.textContent = score;
-        }
-      });
-
-      // Collision with enemy
-      if (!raccoon.dead && Math.abs(enemy.x - raccoon.x) < 20 && Math.abs(enemy.y - raccoon.y) < 20) {
-        raccoon.dead = true;
-        raccoon.respawnTimer = 180; // 3秒 (60fps)
-      }
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!player.dead) {
+      ctx.fillStyle = "brown";
+      ctx.fillRect(player.x, player.y, player.size, player.size);
+    } else {
+      ctx.fillStyle = "gray";
+      ctx.font = "24px sans-serif";
+      ctx.fillText("Respawning...", canvas.width / 2 - 60, canvas.height / 2);
     }
+  }
 
-    function draw() {
-      ctx.clearRect(0, 0, 512, 512);
+  function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
 
-      // Draw raccoon
-      if (!raccoon.dead) {
-        ctx.fillStyle = 'gray';
-        ctx.fillRect(raccoon.x, raccoon.y, raccoon.size, raccoon.size);
-      }
+  gameLoop();
+</script>
 
-      // Draw food
-      foods.forEach(food => {
-        if (!food.eaten) {
-          ctx.fillStyle = 'orange';
-          ctx.beginPath();
-          ctx.arc(food.x, food.y, 8, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-
-      // Draw enemy
-      ctx.fillStyle = 'brown';
-      ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
-    }
-
-    function gameLoop() {
-      update();
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
-
-    setInterval(() => {
-      if (timeLeft > 0) {
-        timeLeft--;
-        timeEl.textContent = timeLeft;
-        if (timeLeft === 0) endGame();
-      }
-    }, 1000);
-
-    function endGame() {
-      gameoverEl.style.display = 'block';
-      updateRanking();
-    }
-
-    function updateRanking() {
-      const scores = JSON.parse(localStorage.getItem('ranking') || '[]');
-      scores.push(score);
-      scores.sort((a,b) => b - a);
-      const topScores = scores.slice(0, 5);
-      localStorage.setItem('ranking', JSON.stringify(topScores));
-      rankingEl.innerHTML = '<h3>ランキング</h3>' + topScores.map((s,i) => `${i+1}位: ${s}点`).join('<br>');
-    }
-
-    document.addEventListener('keydown', e => keys[e.key] = true);
-    document.addEventListener('keyup', e => keys[e.key] = false);
-
-    spawnFood();
-    gameLoop();
-  </script>
 </body>
 </html>
